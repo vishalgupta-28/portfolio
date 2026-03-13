@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 interface ContactFormData {
     fullName: string;
     email: string;
@@ -10,23 +8,31 @@ interface ContactFormData {
     turnstileToken: string;
 }
 
-async function verifyTurnstile(token: string): Promise<boolean> {
-    const response = await fetch(
-        "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-        {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                secret: process.env.TURNSTILE_SECRET_KEY,
-                response: token,
-            }),
-        }
-    );
+async function verifyTurnstile(
+    token: string,
+    turnstileSecretKey: string
+): Promise<boolean> {
+    try {
+        const response = await fetch(
+            "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    secret: turnstileSecretKey,
+                    response: token,
+                }),
+            }
+        );
 
-    const data = await response.json();
-    return data.success;
+        const data = await response.json();
+        return Boolean(data.success);
+    } catch (error) {
+        console.error("Turnstile verification failed:", error);
+        return false;
+    }
 }
 
 export async function POST(request: NextRequest) {
@@ -48,13 +54,34 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const isValidToken = await verifyTurnstile(turnstileToken);
+        const turnstileSecretKey = process.env.TURNSTILE_SECRET_KEY;
+        if (!turnstileSecretKey) {
+            return NextResponse.json(
+                { error: "Server is missing TURNSTILE_SECRET_KEY" },
+                { status: 500 }
+            );
+        }
+
+        const resendApiKey = process.env.RESEND_API_KEY;
+        if (!resendApiKey) {
+            return NextResponse.json(
+                { error: "Server is missing RESEND_API_KEY" },
+                { status: 500 }
+            );
+        }
+
+        const isValidToken = await verifyTurnstile(
+            turnstileToken,
+            turnstileSecretKey
+        );
         if (!isValidToken) {
             return NextResponse.json(
                 { error: "Verification failed. Please try again." },
                 { status: 400 }
             );
         }
+
+        const resend = new Resend(resendApiKey);
 
         const { data, error } = await resend.emails.send({
             from: "UserAccess Contact <contact@useraccess.live>",
