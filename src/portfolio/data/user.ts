@@ -53,5 +53,5 @@ export const USER = {
     "vishalgupta_28",
   ],
   dateCreated: "2025-12-23",
-  resume: "https://drive.google.com/file/d/1RQLuVU3EF7LbNHXT229C54BEZ7qA6fJ1/view?usp=sharing",
+  resume: "https://drive.google.com/file/d/10zIvG5PLlT44-cGUclhOKrdiHMVZVsJO/view?usp=sharing",
 } satisfies User;
